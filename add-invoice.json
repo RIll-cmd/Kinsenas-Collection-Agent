@@ -1,0 +1,357 @@
+{
+  "name": "Add invoice",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "n8nUserAuth",
+        "formTitle": "Add an unpaid invoice",
+        "formDescription": "The collections bot will start reminding the customer after the due date.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Invoice ID",
+              "fieldName": "invoice_id",
+              "placeholder": "INV-004",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Customer name",
+              "fieldName": "customer",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Customer email",
+              "fieldType": "email",
+              "fieldName": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Amount (PHP)",
+              "fieldType": "number",
+              "fieldName": "amount",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Due date",
+              "fieldType": "date",
+              "fieldName": "due_date",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Save invoice",
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Saved. Check Telegram for confirmation."
+            }
+          }
+        }
+      },
+      "id": "b227e98b-5b6d-4e94-afd5-ba8c2fc99e12",
+      "name": "Add invoice form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "b07cdac9-88d4-4395-93bf-d412372eda83"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NbZhOM9manTPWHeY"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_id",
+              "keyValue": "={{ $('Add invoice form').item.json.invoice_id.trim() }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "7546559e-ec0e-4e66-af6c-b59ffb0e8f62",
+      "name": "Find same invoice ID",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.invoice_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6ccc4b0d-97c2-4002-9c8a-5a2f01e080c8",
+      "name": "Is new?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NbZhOM9manTPWHeY"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "invoice_id": "={{ $('Add invoice form').item.json.invoice_id.trim() }}",
+            "customer": "={{ $('Add invoice form').item.json.customer }}",
+            "email": "={{ $('Add invoice form').item.json.email.trim().toLowerCase() }}",
+            "amount": "={{ Number($('Add invoice form').item.json.amount) }}",
+            "due_date": "={{ DateTime.fromISO($('Add invoice form').item.json.due_date, { zone: 'Asia/Manila' }).toISO() }}",
+            "status": "open",
+            "stage": 0,
+            "promises_kept": 0,
+            "promises_broken": 0
+          },
+          "schema": [
+            {
+              "id": "invoice_id",
+              "displayName": "invoice_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "customer",
+              "displayName": "customer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "promises_kept",
+              "displayName": "promises_kept",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "promises_broken",
+              "displayName": "promises_broken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e0cc362f-7c52-40a2-973b-908d56b55dc7",
+      "name": "Save invoice",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🧾 Added {{ $('Add invoice form').item.json.invoice_id }}: {{ $('Add invoice form').item.json.customer }}, PHP {{ $('Add invoice form').item.json.amount }}, due {{ $('Add invoice form').item.json.due_date }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "8b71e3a3-2618-48b7-ac08-d9355277043d",
+      "name": "Confirm added",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -96
+      ],
+      "webhookId": "7979dda4-2a03-4163-a592-0a296bf2e966",
+      "credentials": {
+        "telegramApi": {
+          "id": "5dZPTCUzuMBlGPTp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=⚠️ Not added: {{ $('Add invoice form').item.json.invoice_id }} already exists. Edit it in the invoices table instead.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "cb4b4fb8-cb0d-4413-ab4b-125f19c601cb",
+      "name": "Warn duplicate",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        96
+      ],
+      "webhookId": "a48f3687-9b6e-4919-8ccb-8e7c7ac7ee15",
+      "credentials": {
+        "telegramApi": {
+          "id": "5dZPTCUzuMBlGPTp",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Add invoice form": {
+      "main": [
+        [
+          {
+            "node": "Find same invoice ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find same invoice ID": {
+      "main": [
+        [
+          {
+            "node": "Is new?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is new?": {
+      "main": [
+        [
+          {
+            "node": "Save invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Warn duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save invoice": {
+      "main": [
+        [
+          {
+            "node": "Confirm added",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "ADXFotBRwAzepMmg",
+    "timezone": "Asia/Manila"
+  },
+  "versionId": "b8d20c85-75b3-4591-818b-e37012fa4616",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "50f15cb66a85471e961d6c30b74ebf4925b165aed8466bb921a2f58f1759c0db"
+  },
+  "nodeGroups": [],
+  "id": "EP52WH9EmsHF9bWP",
+  "tags": []
+}

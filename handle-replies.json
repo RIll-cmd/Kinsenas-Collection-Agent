@@ -1,0 +1,968 @@
+{
+  "name": "Handle replies",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "q": "subject:(INV-) -from:me"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        -112
+      ],
+      "id": "0f4d3997-eb6a-45a2-9e19-2dc785270fb7",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Fhvvow8SsTqsHXxM",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d697f5fb-5a6f-416b-90b6-72300bbc071c",
+              "name": "reply",
+              "value": "={{ $json.snippet.split(/\\s+On [\\s\\S]*?wrote:/)[0].trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "33d6cefd-1897-4108-a1de-35970ab524c4",
+              "name": "invoice_id",
+              "value": "={{ ($json.Subject.match(/INV-\\d+/) || [''])[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "76cab9a3-4e26-47de-9366-233d07d209cb",
+              "name": "from_email",
+              "value": "={{ ($json.From.match(/<([^>]+)>/) || [null, $json.From])[1] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        -112
+      ],
+      "id": "23913370-9979-4a31-8c4a-47c95ed301d4",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $json.reply }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "paid",
+              "description": "Customer says they already paid or sent the payment."
+            },
+            {
+              "category": "promise",
+              "description": "Customer promises to pay on a date or soon."
+            },
+            {
+              "category": "dispute",
+              "description": "Customer says the invoice or amount is wrong, or refuses to pay."
+            },
+            {
+              "category": "payment_plan",
+              "description": "Customer asks to pay in parts or installments."
+            }
+          ]
+        },
+        "options": {
+          "fallback": "other",
+          "includeConfidenceScores": true,
+          "systemPromptTemplate": "Please classify the text provided by the user into one of the following categories: {categories}, and use the provided formatting instructions below. Don't explain, and only output the json.\nReplies may be in English, Tagalog, or Taglish."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        -112
+      ],
+      "id": "eb265ab2-e574-419d-8c1a-e3933cbe90ad",
+      "name": "Text Classifier"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        208
+      ],
+      "id": "e0f765e7-729a-4cdb-a4d1-3179fbaa4821",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OYn4AAATMEEcCl1k",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "=Today is {{ $now.toFormat('cccc, yyyy-MM-dd') }}.\nCustomer reply: {{ $('Edit Fields').item.json.reply }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "promise_date",
+              "description": "Date the customer promises to pay, as YYYY-MM-DD. Use today's date to resolve words like Friday or bukas.",
+              "required": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        -336
+      ],
+      "id": "4a3022a2-98ca-4bca-890d-46875badaed8",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        -16
+      ],
+      "id": "6a79c91e-6500-4ba8-bba8-0f43919c5442",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OYn4AAATMEEcCl1k",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "NbZhOM9manTPWHeY",
+          "mode": "list",
+          "cachedResultName": "invoices",
+          "cachedResultUrl": "/projects/lfypnvbbRyFOn6Vf/datatables/NbZhOM9manTPWHeY"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_id",
+              "keyValue": "={{ $('Edit Fields').item.json.invoice_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "promise_date": "={{ $json.output.promise_date }}",
+            "status": "promised"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "invoice_id",
+              "displayName": "invoice_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "customer",
+              "displayName": "customer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "last_contact",
+              "displayName": "last_contact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "promise_date",
+              "displayName": "promise_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1184,
+        -336
+      ],
+      "id": "f5671eec-f877-4451-b700-a953e1a3d7b3",
+      "name": "Update row(s)"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🤝 {{ $('Edit Fields').item.json.invoice_id }} promised to pay on {{ $('Information Extractor').item.json.output.promise_date }}\n\"{{ $('Edit Fields').item.json.reply }}\"",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        -224
+      ],
+      "id": "84dfc957-ccef-464a-b94f-878bf6109688",
+      "name": "Send a text message",
+      "webhookId": "0d5f684e-73e9-4e8e-a13e-cdd6988dd1cd",
+      "credentials": {
+        "telegramApi": {
+          "id": "5dZPTCUzuMBlGPTp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=⚠️ {{ $('Edit Fields').item.json.invoice_id || '(no invoice ID in subject)' }} needs you: {{ $('Text Classifier').item.json.classification.category }} ({{ Math.round($('Text Classifier').item.json.classification.confidence * 100) }}% sure)\nFrom: {{ $('Gmail Trigger').item.json.From }}\n\"{{ $('Edit Fields').item.json.reply }}\"\n\nIf they say paid: check your bank/GCash FIRST, then set status = paid in the table.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        176
+      ],
+      "id": "2f7fdc7c-492b-4a10-8128-e64617907ae1",
+      "name": "Needs you",
+      "webhookId": "abbbc89c-488b-4d25-9e1a-c6be94ee3585",
+      "credentials": {
+        "telegramApi": {
+          "id": "5dZPTCUzuMBlGPTp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "b1e6a0c2-6f4d-4b7e-9a51-3f0d2c8e7a11",
+              "leftValue": "={{ $('Edit Fields').item.json.invoice_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7a169282-05f8-4bed-856c-a498cc2cc40d",
+      "name": "Has invoice ID?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        656,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "message": "=<p>Salamat po! Noted po na babayaran ninyo ang {{ $('Edit Fields').item.json.invoice_id }} sa {{ DateTime.fromISO($('Information Extractor').item.json.output.promise_date).toFormat('cccc, MMMM d') }}.</p><p>Thank you! We have noted your payment date.</p><p>Accounts Team</p>",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Accounts Team",
+          "replyToSenderOnly": true
+        }
+      },
+      "id": "9e9c664d-f613-4a91-810a-372cd745bd47",
+      "name": "Thank promise",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1328,
+        -416
+      ],
+      "webhookId": "5f875d6a-21e4-4498-b8f0-131934203b91",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Fhvvow8SsTqsHXxM",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "message": "=<p>Salamat po! Iche-check po namin ang bayad para sa {{ $('Edit Fields').item.json.invoice_id || 'inyong invoice' }} at magko-confirm kami agad.</p><p>Thank you! We will verify your payment and confirm shortly.</p><p>Accounts Team</p>",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Accounts Team",
+          "replyToSenderOnly": true
+        }
+      },
+      "id": "5aac5e8c-8cff-45ea-8d45-3e12c6d96218",
+      "name": "Thank paid",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        544
+      ],
+      "webhookId": "195792cc-0d3c-4204-b7db-fb3377536cfe",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Fhvvow8SsTqsHXxM",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "simple": false,
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "id": "c7af2803-6b57-4293-8ccf-2942ed7d8a1e",
+      "name": "Get email + files",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        608
+      ],
+      "webhookId": "8e9a7f7f-3a6d-483b-a747-56d3b6600ec9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Fhvvow8SsTqsHXxM",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "c3f1d2e4-1111-4a2b-9c3d-5e6f7a8b9c01",
+              "leftValue": "={{ Object.values($binary || {}).some(b => (b.mimeType || '').startsWith('image/')) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d7246cb9-b8f7-46b8-9e1b-d3d7f94f0cd0",
+      "name": "Has image?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        928,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "models/gemini-flash-lite-latest"
+        },
+        "text": "This image should be a GCash, Maya or bank transfer receipt from the Philippines. Reply with ONLY one JSON object, no other text: {\"is_receipt\": true or false, \"app\": \"GCash/Maya/BPI/BDO/...\", \"ref_no\": \"reference number exactly as shown\", \"amount\": number in PHP, \"date\": \"YYYY-MM-DD\", \"time\": \"HH:MM\", \"recipient\": \"name or number paid to\", \"notes\": \"anything that looks edited, cropped, mismatched fonts, or unusual; empty if none\"}",
+        "inputType": "binary",
+        "binaryPropertyName": "={{ Object.keys($binary).find(k => ($binary[k].mimeType || '').startsWith('image/')) }}",
+        "options": {
+          "maxOutputTokens": 600
+        }
+      },
+      "id": "be1aafd3-4bfe-48b3-875d-b6157285376d",
+      "name": "Read receipt",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1152,
+        608
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OYn4AAATMEEcCl1k",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Gemini answers as text; pull the JSON object out of whichever field holds it\nconst find = v => typeof v === 'string' ? (v.includes('{') ? v : null)\n  : v && typeof v === 'object' ? (Object.values(v).map(find).find(Boolean) ?? null) : null;\nconst text = find($json) || '{}';\nlet r;\ntry { r = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)); }\ncatch (e) { r = { parse_error: true }; }\nreturn { json: { ...r, ref_no: String(r.ref_no || '').replace(/\\s/g, '') } };"
+      },
+      "id": "8a75ca71-0685-4060-9c28-e6a2263c5456",
+      "name": "Parse receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "bYjb3CnOZSkKtjKl"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "ref",
+              "keyValue": "={{ $json.ref_no || '__none__' }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "31c2c792-966e-4de0-997e-24426e2627e6",
+      "name": "Find same ref",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1600,
+        608
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "NbZhOM9manTPWHeY"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_id",
+              "keyValue": "={{ $('Edit Fields').first().json.invoice_id || '__none__' }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "a0567839-4ddc-4b5f-b7b7-4f4028e0bb62",
+      "name": "Get invoice",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1824,
+        608
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// shortcut: assumes one receipt email per poll (Gmail polls every minute); split per item if volume grows\nconst r = $('Parse receipt').first().json;\nconst inv = $('Get invoice').first().json;\nconst invoiceId = $('Edit Fields').first().json.invoice_id || '(no invoice ID)';\nconst seen = $('Find same ref').all().map(i => i.json).filter(j => j.ref);\nconst now = DateTime.now();\nconst flags = [];\nif (r.parse_error || r.is_receipt === false) flags.push('❓ does not look like a payment receipt');\nif (!r.ref_no) flags.push('❓ no reference number found');\nif (seen.length) flags.push(`🚩 reference ${r.ref_no} was already used for ${seen.map(s => s.invoice_id).join(', ')}`);\nif (inv.amount != null && r.amount != null && Number(r.amount) !== Number(inv.amount)) flags.push(`🚩 amount PHP ${r.amount} does not match invoice PHP ${inv.amount}`);\nif (r.date) {\n  const d = DateTime.fromISO(r.date);\n  if (d > now.plus({ days: 1 })) flags.push('🚩 receipt date is in the future');\n  if (d < now.minus({ days: 60 })) flags.push('🚩 receipt is more than 60 days old');\n}\nif (r.notes) flags.push(`👀 ${r.notes}`);\nconst text = `🧾 Receipt check: ${invoiceId}\\n${r.app || '?'} · ref ${r.ref_no || '?'} · PHP ${r.amount ?? '?'} · ${r.date || '?'} ${r.time || ''}\\n\\n${flags.length ? flags.join('\\n') : '✅ no red flags found'}\\n\\nStill check your GCash/bank app before marking paid.`;\nreturn [{ json: { text, ref: r.ref_no, invoice_id: invoiceId, amount: Number(r.amount) || null, app: r.app || '' } }];"
+      },
+      "id": "bc3e7976-b7b6-4efe-a363-b6a122c4fdd7",
+      "name": "Check receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "d094d794-3455-4071-8ba1-83d3d4e1e004",
+      "name": "Receipt report",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2272,
+        528
+      ],
+      "webhookId": "276daf58-1690-4677-8057-c56c83223da2",
+      "credentials": {
+        "telegramApi": {
+          "id": "5dZPTCUzuMBlGPTp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "bYjb3CnOZSkKtjKl"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ref": "={{ $json.ref }}",
+            "invoice_id": "={{ $json.invoice_id }}",
+            "amount": "={{ $json.amount }}",
+            "app": "={{ $json.app }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ref",
+              "displayName": "ref",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_id",
+              "displayName": "invoice_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "app",
+              "displayName": "app",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f1116769-aadc-48fd-b737-b36e31c58887",
+      "name": "Remember ref",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2272,
+        688
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Classifier": {
+      "main": [
+        [
+          {
+            "node": "Needs you",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Thank paid",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get email + files",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has invoice ID?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs you",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs you",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs you",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Update row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row(s)": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Thank promise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has invoice ID?": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs you",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get email + files": {
+      "main": [
+        [
+          {
+            "node": "Has image?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has image?": {
+      "main": [
+        [
+          {
+            "node": "Read receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read receipt": {
+      "main": [
+        [
+          {
+            "node": "Parse receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse receipt": {
+      "main": [
+        [
+          {
+            "node": "Find same ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find same ref": {
+      "main": [
+        [
+          {
+            "node": "Get invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get invoice": {
+      "main": [
+        [
+          {
+            "node": "Check receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check receipt": {
+      "main": [
+        [
+          {
+            "node": "Receipt report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Remember ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "ADXFotBRwAzepMmg",
+    "timezone": "Asia/Manila"
+  },
+  "versionId": "a5036df3-d0cb-44e6-a95a-46feb9829180",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "50f15cb66a85471e961d6c30b74ebf4925b165aed8466bb921a2f58f1759c0db"
+  },
+  "nodeGroups": [
+    {
+      "id": "b3bb7d5f-1d39-471c-b206-2e18bf09dbe0",
+      "name": "Receipt check",
+      "nodeIds": [
+        "c7af2803-6b57-4293-8ccf-2942ed7d8a1e",
+        "d7246cb9-b8f7-46b8-9e1b-d3d7f94f0cd0",
+        "be1aafd3-4bfe-48b3-875d-b6157285376d",
+        "8a75ca71-0685-4060-9c28-e6a2263c5456",
+        "31c2c792-966e-4de0-997e-24426e2627e6",
+        "a0567839-4ddc-4b5f-b7b7-4f4028e0bb62",
+        "bc3e7976-b7b6-4efe-a363-b6a122c4fdd7",
+        "d094d794-3455-4071-8ba1-83d3d4e1e004",
+        "f1116769-aadc-48fd-b737-b36e31c58887"
+      ],
+      "description": "Read GCash/bank screenshots and flag fakes. Never marks paid."
+    }
+  ],
+  "id": "I82aZLzKylvRQJRd",
+  "tags": []
+}

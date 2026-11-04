@@ -1,0 +1,681 @@
+{
+  "name": "Daily chase",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        -112
+      ],
+      "id": "a247bcfa-a025-4c95-9839-b25d5c0c911e",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "NbZhOM9manTPWHeY",
+          "mode": "list",
+          "cachedResultName": "invoices",
+          "cachedResultUrl": "/projects/lfypnvbbRyFOn6Vf/datatables/NbZhOM9manTPWHeY"
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        -112
+      ],
+      "id": "29ca67b4-88df-49e5-9356-0eae89713eae",
+      "name": "Get row(s)"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a short, polite payment reminder email.\nStage {{ $json.stage }}: 0 = friendly, 1 = firmer, 2 = offer a payment plan.\nCustomer: {{ $json.customer }}\nInvoice: {{ $json.invoice_id }}, amount PHP {{ $json.amount }}, {{ $json.days_overdue }} days overdue.\nNo threats. Sign as \"Accounts Team\".\nOnly use line breaks between paragraphs, never inside a sentence.\n{{ $json.broken_promise ? 'The customer promised to pay on ' + $json.promise_date + ' but has not paid. Mention this politely.' : '' }}\n{{ $json.reliability === 'reliable' ? 'This customer usually keeps payment promises: be warm and appreciative.' : $json.reliability === 'unreliable' ? 'This customer often breaks payment promises: be clear and firm, still polite.' : '' }}\n{{ $json.notes ? 'Owner note about this customer (follow it): ' + $json.notes : '' }}",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        672,
+        -112
+      ],
+      "id": "fa14b66f-dd78-429d-8697-168eaebf307e",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        112
+      ],
+      "id": "3c82eeaf-6195-4ff7-ad81-265cf2e8df36",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OYn4AAATMEEcCl1k",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{ \"subject\": \"Friendly reminder: Invoice INV-001\", \"body\": \"Hi ...\" }"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        112
+      ],
+      "id": "d798d133-4cdd-46bb-864e-95df790949fc",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "0207ae44-a242-4b28-b3ff-11310e866e2d",
+              "leftValue": "={{ $('Code').item.json.stage }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1024,
+        -112
+      ],
+      "id": "bd856a86-70c1-4d05-ad3c-4c210e4648f9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// PH paydays are the 15th and end of month; regular reminders go out 1-3 days after\nconst PAYDAY_WINDOW = [1, 2, 3, 16, 17, 18];\n// regular + special non-working days; check each year's proclamation (Eid dates move, add them when announced)\nconst PH_HOLIDAYS = [\n  '2026-01-01', '2026-02-17', '2026-04-02', '2026-04-03', '2026-04-04', '2026-04-09', '2026-05-01', '2026-06-12',\n  '2026-08-21', '2026-08-31', '2026-11-01', '2026-11-02', '2026-11-30', '2026-12-08', '2026-12-24', '2026-12-25', '2026-12-30', '2026-12-31',\n  '2027-01-01', '2027-02-06', '2027-03-25', '2027-03-26', '2027-03-27', '2027-04-09', '2027-05-01', '2027-06-12',\n  '2027-08-21', '2027-08-30', '2027-11-01', '2027-11-02', '2027-11-30', '2027-12-08', '2027-12-24', '2027-12-25', '2027-12-30', '2027-12-31',\n];\nconst ts = $('Schedule Trigger').first().json.timestamp;\nconst today = (ts ? DateTime.fromISO(ts) : DateTime.now()).setZone('Asia/Manila');\n// no customer emails on Sundays or holidays\nif (today.weekday === 7 || PH_HOLIDAYS.includes(today.toISODate())) return [];\nconst afterPayday = PAYDAY_WINDOW.includes(today.day);\nconst all = $input.all().map(i => i.json);\n\n// promise score per customer, summed over all their invoices\nconst score = {};\nfor (const j of all) {\n  const s = score[j.email] ??= { kept: 0, broken: 0 };\n  s.kept += j.promises_kept || 0;\n  s.broken += j.promises_broken || 0;\n}\n\nreturn all\n  .filter(j => {\n    const due = DateTime.fromISO(j.due_date);\n    const last = j.last_contact ? DateTime.fromISO(j.last_contact) : null;\n    // promise counts as broken 1 day after the promised date\n    const broken = j.status === 'promised' && j.promise_date &&\n      DateTime.fromISO(j.promise_date).plus({ days: 1 }) < today;\n    // broken promises are chased right away; normal reminders wait for payday\n    return ((j.status === 'open' && afterPayday) || broken) && due < today && j.stage < 3 &&\n      (!last || today.diff(last, 'days').days >= 3);\n  })\n  .map(j => {\n    const s = score[j.email];\n    const total = s.kept + s.broken;\n    return { json: { ...j,\n      broken_promise: j.status === 'promised',\n      days_overdue: Math.floor(today.diff(DateTime.fromISO(j.due_date), 'days').days),\n      reliability: total === 0 ? 'new' : s.kept >= s.broken ? 'reliable' : 'unreliable',\n      score_badge: total === 0 ? '🆕 no promises yet' : `${s.kept >= s.broken ? '✅' : '⚠️'} kept ${s.kept}/${total} promises` } };\n  });"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -112
+      ],
+      "id": "cfb9ec11-f053-43b4-ae7b-1794a3046450",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "message": "=Send this to {{ $('Code').item.json.customer }}?\n{{ $('Code').item.json.score_badge }}\n\n{{ $('Basic LLM Chain').item.json.output.subject }}\n\n{{ $('Basic LLM Chain').item.json.output.body }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "chatApproval": true,
+        "approverIds": "YOUR_TELEGRAM_CHAT_ID",
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 20
+            }
+          },
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1280,
+        -240
+      ],
+      "id": "7604228c-99c8-49a7-a984-a88afbebaae9",
+      "name": "Send message and wait for response",
+      "webhookId": "d89813dc-5e90-4ecc-80d4-7ae134842f40",
+      "credentials": {
+        "telegramApi": {
+          "id": "5dZPTCUzuMBlGPTp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "a74fff18-65e9-4d15-a5f1-65a989f9278d",
+              "leftValue": "={{ $json.data?.approved === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1488,
+        -240
+      ],
+      "id": "293383c1-9eb1-4fc8-8f25-89a00bd7f4cc",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Code').item.json.email }}",
+        "subject": "={{ $('Basic LLM Chain').item.json.output.subject }}",
+        "message": "={{ '<div style=\"white-space:pre-wrap;font-family:sans-serif\">' + $('Basic LLM Chain').item.json.output.body.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>' }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Accounts Team"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        -96
+      ],
+      "id": "ff2e3ae1-d2f5-4bbd-ac5d-ad9332716a2a",
+      "name": "Send a message",
+      "webhookId": "f93a598f-8c7f-48db-a7e5-76a1a7da5a5d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Fhvvow8SsTqsHXxM",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "NbZhOM9manTPWHeY",
+          "mode": "list",
+          "cachedResultName": "invoices",
+          "cachedResultUrl": "/projects/lfypnvbbRyFOn6Vf/datatables/NbZhOM9manTPWHeY"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_id",
+              "keyValue": "={{ $('Code').item.json.invoice_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "stage": "={{ $('Code').item.json.stage + 1 }}",
+            "last_contact": "={{ $now.toISO() }}",
+            "status": "open",
+            "promises_broken": "={{ ($('Code').item.json.promises_broken || 0) + ($('Code').item.json.broken_promise ? 1 : 0) }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "invoice_id",
+              "displayName": "invoice_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "customer",
+              "displayName": "customer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "stage",
+              "displayName": "stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "last_contact",
+              "displayName": "last_contact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "promise_date",
+              "displayName": "promise_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "promises_kept",
+              "displayName": "promises_kept",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "promises_broken",
+              "displayName": "promises_broken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1952,
+        -96
+      ],
+      "id": "87d1e072-f530-4410-a015-faaedf8978f7",
+      "name": "Update row(s)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// stage 3 = all reminders sent; list them once a day for a phone call\nconst today = DateTime.now();\nconst rows = $input.all().map(i => i.json)\n  .filter(j => j.stage >= 3 && (j.status === 'open' || j.status === 'promised'));\nif (!rows.length) return [];\nconst lines = rows.map(j => `• ${j.invoice_id} ${j.customer}: PHP ${j.amount}, ${Math.floor(today.diff(DateTime.fromISO(j.due_date), 'days').days)} days overdue`);\nreturn [{ json: { text: `📞 Call these (3 reminders sent, still unpaid):\\n${lines.join('\\n')}` } }];"
+      },
+      "id": "e8e97381-0ad5-497e-aebc-1ba478f4bf25",
+      "name": "Needs a call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "6b57d92b-c4e7-4fb5-a350-585e2b5cc8b8",
+      "name": "Call list",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        320
+      ],
+      "webhookId": "09e96ca5-bd3b-4d48-b9f2-9a9e22498e31",
+      "credentials": {
+        "telegramApi": {
+          "id": "5dZPTCUzuMBlGPTp",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// a promise is kept if the owner marked it paid by the end of the day after the promised date\nreturn $input.all().map(i => i.json)\n  .filter(j => j.status === 'paid' && j.promise_date)\n  .map(j => ({ json: { invoice_id: j.invoice_id,\n    promises_kept: (j.promises_kept || 0) +\n      (DateTime.fromISO(j.updatedAt) <= DateTime.fromISO(j.promise_date).endOf('day').plus({ days: 1 }) ? 1 : 0) } }));"
+      },
+      "id": "121619ed-7759-47f3-a6fc-df73f9712984",
+      "name": "Score paid promises",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "NbZhOM9manTPWHeY",
+          "mode": "list",
+          "cachedResultName": "invoices",
+          "cachedResultUrl": "/projects/lfypnvbbRyFOn6Vf/datatables/NbZhOM9manTPWHeY"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice_id",
+              "keyValue": "={{ $json.invoice_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "promises_kept": "={{ $json.promises_kept }}",
+            "promise_date": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "promise_date",
+              "displayName": "promise_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "promises_kept",
+              "displayName": "promises_kept",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5a8a5c01-2c19-418e-a924-b347ec93dbee",
+      "name": "Save promise score",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        480
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s)": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Needs a call",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Score paid promises",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message and wait for response": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Update row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs a call": {
+      "main": [
+        [
+          {
+            "node": "Call list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score paid promises": {
+      "main": [
+        [
+          {
+            "node": "Save promise score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "errorWorkflow": "ADXFotBRwAzepMmg",
+    "timezone": "Asia/Manila"
+  },
+  "versionId": "59122d4f-e36e-4b2f-8f51-b8266a6cb61c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "50f15cb66a85471e961d6c30b74ebf4925b165aed8466bb921a2f58f1759c0db"
+  },
+  "nodeGroups": [],
+  "id": "TH2e01FmYDt61iab",
+  "tags": []
+}

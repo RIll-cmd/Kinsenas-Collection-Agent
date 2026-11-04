@@ -1,0 +1,13 @@
+# video work in progress (separate session) and local tooling
+video/
+blender/
+tools/
+HANDOFF.md
+CREDITS-assets.md
+VIDEO_PROMPT.md
+
+# contains the real Telegram chat ID it redacts
+redact.ps1
+
+node_modules/
+*.log
