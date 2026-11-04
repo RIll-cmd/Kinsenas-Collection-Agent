@@ -7,7 +7,8 @@
 
 *Kinsenas* is the 15th-of-the-month payday. Reminders go out right after payday, when customers actually have money.
 
-![Fake-receipt check](screenshots/receipt-check-reused-ref.png)
+<p align="center"><img src="screenshots/00-hero-approval.png" width="560" alt="AI-written reminder waiting for one-tap approval in Telegram, with the customer's promise score"></p>
+<p align="center"><em>Gemini writes the reminder, shows the customer's promise score, and waits for one tap in Telegram.</em></p>
 
 ## What it does
 
