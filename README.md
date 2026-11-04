@@ -10,6 +10,11 @@
 <p align="center"><img src="screenshots/00-hero-approval.png" width="560" alt="AI-written reminder waiting for one-tap approval in Telegram, with the customer's promise score"></p>
 <p align="center"><em>Gemini writes the reminder, shows the customer's promise score, and waits for one tap in Telegram.</em></p>
 
+## Demo
+
+<p align="center"><a href="demo/kinsenas-demo.mp4"><img src="demo/kinsenas-demo-poster.jpg" width="720" alt="Watch the 90-second demo" /></a></p>
+<p align="center"><b>▶ <a href="demo/kinsenas-demo.mp4">Watch the 90-second demo</a></b><br /><em>With test invoices only. Voice-over made with ElevenLabs; sky footage from Pexels.</em></p>
+
 ## What it does
 
 | | Feature | How |
