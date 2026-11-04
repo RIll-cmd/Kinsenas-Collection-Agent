@@ -7,7 +7,7 @@
 
 *Kinsenas* is the 15th-of-the-month payday. Reminders go out right after payday, when customers actually have money.
 
-![Daily chase workflow](screenshots/01-daily-chase-canvas.png)
+![Fake-receipt check](screenshots/receipt-check-reused-ref.png)
 
 ## What it does
 
@@ -48,6 +48,23 @@ Five workflows plus one n8n Agent:
 | `error-alert.json` | Error Trigger | Failure alerts |
 | *(n8n Agent)* | Telegram channel | Owner's Taglish assistant (configured in n8n, no JSON export) |
 
+## The workflows
+
+**Daily chase:** payday and holiday rules → Gemini writes the email → Telegram approval → Gmail → table update, plus the call list and promise scoring
+![Daily chase](screenshots/01-daily-chase-canvas.png)
+
+**Handle replies:** Text Classifier → promise path (date extraction, auto-reply) · receipt check · owner alerts
+![Handle replies](screenshots/02-handle-replies-canvas.png)
+
+| Add invoice | Weekly summary | Error alert |
+|---|---|---|
+| ![Add invoice](screenshots/04-add-invoice-canvas.png) | ![Weekly summary](screenshots/03-weekly-summary-canvas.png) | ![Error alert](screenshots/05-error-alert-canvas.png) |
+
+**Collections Assistant (n8n Agent):** model, instructions, Telegram channel and 3 Data Table tools (status changes need approval)
+| Instructions | Setup |
+|---|---|
+| ![Agent instructions](screenshots/06-agent-instructions.png) | ![Agent overview](screenshots/07-agent-overview.png) |
+
 ## Screenshots
 
 ### Adding an invoice
@@ -81,18 +98,6 @@ Five workflows plus one n8n Agent:
 | Monday summary | Invoices table |
 |---|---|
 | ![](screenshots/17-telegram-weekly-summary.png) | ![](screenshots/08-invoices-table-1.png) |
-
-<details>
-<summary>More workflow canvases</summary>
-
-![Handle replies](screenshots/02-handle-replies-canvas.png)
-![Weekly summary](screenshots/03-weekly-summary-canvas.png)
-![Add invoice](screenshots/04-add-invoice-canvas.png)
-![Error alert](screenshots/05-error-alert-canvas.png)
-![Agent instructions](screenshots/06-agent-instructions.png)
-![Agent overview](screenshots/07-agent-overview.png)
-
-</details>
 
 ## Tech
 
