@@ -12,8 +12,8 @@
 
 ## Demo
 
-<p align="center"><a href="https://cdn.jsdelivr.net/gh/RIll-cmd/Kinsenas-Collection-Agent@main/demo/kinsenas-demo.mp4"><img src="demo/kinsenas-demo-poster.jpg" width="720" alt="Watch the 90-second demo" /></a></p>
-<p align="center"><b>▶ <a href="https://cdn.jsdelivr.net/gh/RIll-cmd/Kinsenas-Collection-Agent@main/demo/kinsenas-demo.mp4">Watch the 90-second demo</a></b><br /><em>With test invoices only. Voice-over made with ElevenLabs; sky footage from Pexels.</em></p>
+<p align="center"><a href="https://cdn.jsdelivr.net/gh/cyrillcajucom/Kinsenas-Collection-Agent@main/demo/kinsenas-demo.mp4"><img src="demo/kinsenas-demo-poster.jpg" width="720" alt="Watch the 90-second demo" /></a></p>
+<p align="center"><b>▶ <a href="https://cdn.jsdelivr.net/gh/cyrillcajucom/Kinsenas-Collection-Agent@main/demo/kinsenas-demo.mp4">Watch the 90-second demo</a></b><br /><em>With test invoices only. Voice-over made with ElevenLabs; sky footage from Pexels.</em></p>
 
 ## What it does
 
